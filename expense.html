@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expense Tracker (PKR)</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      background-color: #f0f2f5;
+      color: #1f2937;
+      padding: 24px 16px 60px;
+    }
+
+    .app {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    h1 { font-size: 1.6rem; margin: 0; }
+    .subtitle { color: #6b7280; font-size: 0.95rem; }
+
+    /* ---------- Layout: main column + calculator sidebar ---------- */
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 20px;
+      align-items: start;
+    }
+    .main-col { display: grid; gap: 20px; min-width: 0; }
+    .main-col > .card, .main-col > .stats { margin-bottom: 0; }
+
+    .side-col {
+      position: sticky;
+      top: 24px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+
+    /* ---------- Stats ---------- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .stat {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+    .stat-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    .stat-value.total { color: #2563eb; }
+
+    /* ---------- Form ---------- */
+    form {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: bold;
+      margin-bottom: 4px;
+      color: #374151;
+    }
+    input, select {
+      width: 100%;
+      height: 42px;
+      padding: 0 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font: inherit;
+      background: #fff;
+      color: inherit;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
+    button {
+      height: 42px;
+      padding: 0 18px;
+      border: none;
+      border-radius: 6px;
+      font: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .btn-add { background-color: #2563eb; color: #fff; }
+    .btn-add:hover { background-color: #1d4ed8; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #d1d5db;
+      color: #374151;
+    }
+    .btn-outline:hover { background: #f3f4f6; }
+    .btn-danger { background-color: #ef4444; color: #fff; }
+    .btn-danger:hover { background-color: #dc2626; }
+
+    .form-error {
+      color: #dc2626;
+      font-size: 0.85rem;
+      margin: 10px 0 0;
+      min-height: 1em;
+    }
+
+    /* ---------- Calculator (sidebar) ---------- */
+    .calc-card h2 {
+      font-size: 1rem;
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .calc-hint { font-size: 0.72rem; font-weight: normal; color: #9ca3af; }
+
+    .calc-display {
+      width: 100%;
+      height: 46px;
+      text-align: right;
+      font-size: 1.25rem;
+      padding: 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      background: #f9fafb;
+      margin-bottom: 10px;
+    }
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .calc-grid button {
+      height: 42px;
+      font-size: 1.05rem;
+      background: #f3f4f6;
+      color: #1f2937;
+      padding: 0;
+    }
+    .calc-grid button:hover { background: #e5e7eb; }
+    .calc-grid .calc-op { background-color: #ff9500; color: #fff; }
+    .calc-grid .calc-op:hover { background-color: #ffb143; }
+    .calc-grid .calc-eq { background-color: #4cd964; color: #fff; grid-row: span 2; height: auto; }
+    .calc-grid .calc-eq:hover { background-color: #6fe07f; }
+    .calc-grid .calc-clear { background-color: #ff3b30; color: #fff; }
+    .calc-grid .calc-clear:hover { background-color: #ff5c52; }
+    .calc-grid .calc-zero { grid-column: span 2; }
+
+    .btn-use { width: 100%; margin-top: 10px; }
+
+    /* ---------- Toolbar (filters) ---------- */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+      justify-content: space-between;
+    }
+    .toolbar .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .toolbar .field { min-width: 150px; }
+    .toolbar .field.search { min-width: 200px; flex: 1; }
+    .toolbar-actions { display: flex; gap: 8px; }
+
+    /* ---------- Category breakdown ---------- */
+    .bars { display: grid; gap: 10px; }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 110px;
+      gap: 10px;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+    .bar-track {
+      background: #e5e7eb;
+      border-radius: 999px;
+      height: 12px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background-color: #2563eb;
+      transition: width 0.3s ease;
+    }
+    .bar-amount { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ---------- Table ---------- */
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 0.92rem;
+    }
+    th {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+    }
+    td.amount, th.amount { text-align: right; font-variant-numeric: tabular-nums; }
+    td.actions, th.actions { text-align: right; width: 70px; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: bold;
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .badge[data-cat="Food"]        { background: #fee2e2; color: #b91c1c; }
+    .badge[data-cat="Transport"]   { background: #dbeafe; color: #1d4ed8; }
+    .badge[data-cat="Housing"]     { background: #ede9fe; color: #6d28d9; }
+    .badge[data-cat="Utilities"]   { background: #fef3c7; color: #b45309; }
+    .badge[data-cat="Health"]      { background: #dcfce7; color: #15803d; }
+    .badge[data-cat="Entertainment"] { background: #fce7f3; color: #be185d; }
+    .badge[data-cat="Shopping"]    { background: #cffafe; color: #0e7490; }
+    .badge[data-cat="Other"]       { background: #e5e7eb; color: #374151; }
+
+    .delete-btn {
+      background: transparent;
+      border: none;
+      color: #9ca3af;
+      font-size: 1.1rem;
+      height: auto;
+      padding: 4px 6px;
+    }
+    .delete-btn:hover { color: #dc2626; background: transparent; }
+
+    .empty {
+      text-align: center;
+      color: #6b7280;
+      padding: 24px 0;
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 940px) {
+      .layout { grid-template-columns: 1fr; }
+      .side-col { position: static; order: -1; max-width: 340px; }
+    }
+    @media (max-width: 720px) {
+      form { grid-template-columns: 1fr 1fr; }
+      form .field:first-child { grid-column: 1 / -1; }
+      form button { grid-column: 1 / -1; }
+      .bar-row { grid-template-columns: 90px 1fr 100px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Expense Tracker</h1>
+      <span class="subtitle">All amounts in PKR (Rs) — saved in your browser</span>
+    </header>
+
+    <div class="layout">
+      <div class="main-col">
+
+        <!-- Summary -->
+        <section class="stats" aria-label="Summary">
+          <div class="stat">
+            <div class="stat-label">Total spent</div>
+            <div class="stat-value total" id="stat-total">Rs 0.00</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">This month</div>
+            <div class="stat-value" id="stat-month">Rs 0.00</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Transactions</div>
+            <div class="stat-value" id="stat-count">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Top category</div>
+            <div class="stat-value" id="stat-top" style="font-size:1.1rem;">—</div>
+          </div>
+        </section>
+
+        <!-- Add expense -->
+        <section class="card">
+          <form id="expense-form" novalidate>
+            <div class="field">
+              <label for="description">Description</label>
+              <input id="description" type="text" placeholder="e.g. Groceries" maxlength="60" autocomplete="off">
+            </div>
+            <div class="field">
+              <label for="amount">Amount (Rs)</label>
+              <input id="amount" type="number" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label for="category">Category</label>
+              <select id="category">
+                <option>Food</option>
+                <option>Transport</option>
+                <option>Housing</option>
+                <option>Utilities</option>
+                <option>Health</option>
+                <option>Entertainment</option>
+                <option>Shopping</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="date">Date</label>
+              <input id="date" type="date">
+            </div>
+            <button class="btn-add" type="submit">Add</button>
+          </form>
+          <p class="form-error" id="form-error" role="alert"></p>
+        </section>
+
+        <!-- Breakdown -->
+        <section class="card" id="breakdown-card">
+          <h2 style="font-size:1.05rem; margin:0 0 14px;">Spending by category</h2>
+          <div class="bars" id="bars"></div>
+        </section>
+
+        <!-- Expenses -->
+        <section class="card">
+          <div class="toolbar">
+            <div class="filters">
+              <div class="field">
+                <label for="filter-category">Category</label>
+                <select id="filter-category">
+                  <option value="">All</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="filter-month">Month</label>
+                <input id="filter-month" type="month">
+              </div>
+              <div class="field search">
+                <label for="filter-search">Search</label>
+                <input id="filter-search" type="search" placeholder="Search description…">
+              </div>
+            </div>
+            <div class="toolbar-actions">
+              <button class="btn-outline" id="export-btn" type="button">Export CSV</button>
+              <button class="btn-danger" id="clear-btn" type="button">Clear all</button>
+            </div>
+          </div>
+
+          <table aria-label="Expenses">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th class="amount">Amount</th>
+                <th class="actions"><span class="visually-hidden">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody id="expense-rows"></tbody>
+          </table>
+          <p class="empty" id="empty-state">No expenses yet — add your first one above.</p>
+        </section>
+
+      </div><!-- /.main-col -->
+
+      <!-- ============ Calculator (sidebar) ============ -->
+      <aside class="side-col">
+        <section class="card calc-card" aria-label="Calculator">
+          <h2>Calculator <span class="calc-hint">quick math</span></h2>
+          <input class="calc-display" id="calc-display" type="text" readonly value="0" aria-label="Calculator display">
+          <div class="calc-grid">
+            <button class="calc-clear" type="button" data-calc="C">C</button>
+            <button type="button" data-calc="back">⌫</button>
+            <button class="calc-op" type="button" data-calc="/">/</button>
+            <button class="calc-op" type="button" data-calc="*">*</button>
+
+            <button type="button" data-calc="7">7</button>
+            <button type="button" data-calc="8">8</button>
+            <button type="button" data-calc="9">9</button>
+            <button class="calc-op" type="button" data-calc="-">-</button>
+
+            <button type="button" data-calc="4">4</button>
+            <button type="button" data-calc="5">5</button>
+            <button type="button" data-calc="6">6</button>
+            <button class="calc-op" type="button" data-calc="+">+</button>
+
+            <button type="button" data-calc="1">1</button>
+            <button type="button" data-calc="2">2</button>
+            <button type="button" data-calc="3">3</button>
+            <button class="calc-eq" type="button" data-calc="=">=</button>
+
+            <button class="calc-zero" type="button" data-calc="0">0</button>
+            <button type="button" data-calc=".">.</button>
+          </div>
+          <button class="btn-outline btn-use" id="calc-use" type="button">Use result as amount →</button>
+        </section>
+      </aside>
+    </div><!-- /.layout -->
+  </div>
+
+  <script>
+    "use strict";
+
+    const STORAGE_KEY = "expense-tracker-data";
+    const CATEGORIES = ["Food", "Transport", "Housing", "Utilities", "Health", "Entertainment", "Shopping", "Other"];
+
+    /** expense = { id, description, amount, category, date } — amounts in PKR */
+    let expenses = load();
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const data = raw ? JSON.parse(raw) : [];
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function save() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
+      } catch (e) {
+        /* storage full or blocked — the tracker still works for this session */
+      }
+    }
+
+    function formatMoney(value) {
+      return "Rs " + value.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function todayISO() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    }
+
+    function formatDate(iso) {
+      const parts = iso.split("-");
+      if (parts.length !== 3) return iso;
+      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    }
+
+    /* ---------- Add / delete ---------- */
+    const form = document.getElementById("expense-form");
+    const formError = document.getElementById("form-error");
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const description = document.getElementById("description").value.trim();
+      const amount = parseFloat(document.getElementById("amount").value);
+      const category = document.getElementById("category").value;
+      const date = document.getElementById("date").value || todayISO();
+
+      if (!description) {
+        formError.textContent = "Please enter a description.";
+        return;
+      }
+      if (!isFinite(amount) || amount <= 0) {
+        formError.textContent = "Please enter an amount greater than zero.";
+        return;
+      }
+
+      expenses.push({
+        id: Date.now() + Math.random().toString(16).slice(2),
+        description: description,
+        amount: Math.round(amount * 100) / 100,
+        category: category,
+        date: date
+      });
+
+      save();
+      form.reset();
+      document.getElementById("date").value = todayISO();
+      formError.textContent = "";
+      document.getElementById("description").focus();
+      render();
+    });
+
+    function deleteExpense(id) {
+      expenses = expenses.filter(function (x) { return x.id !== id; });
+      save();
+      render();
+    }
+
+    /* ---------- Filtering ---------- */
+    function filteredExpenses() {
+      const cat = document.getElementById("filter-category").value;
+      const month = document.getElementById("filter-month").value; // "YYYY-MM" or ""
+      const search = document.getElementById("filter-search").value.trim().toLowerCase();
+
+      return expenses.filter(function (x) {
+        if (cat && x.category !== cat) return false;
+        if (month && x.date.slice(0, 7) !== month) return false;
+        if (search && x.description.toLowerCase().indexOf(search) === -1) return false;
+        return true;
+      });
+    }
+
+    /* ---------- Render ---------- */
+    const rowsEl = document.getElementById("expense-rows");
+    const emptyEl = document.getElementById("empty-state");
+
+    function render() {
+      const visible = filteredExpenses().slice().sort(function (a, b) {
+        return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+      });
+
+      // Table rows
+      rowsEl.innerHTML = "";
+      visible.forEach(function (x) {
+        const tr = document.createElement("tr");
+
+        const tdDate = document.createElement("td");
+        tdDate.textContent = formatDate(x.date);
+
+        const tdCat = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.setAttribute("data-cat", x.category);
+        badge.textContent = x.category;
+        tdCat.appendChild(badge);
+
+        const tdDesc = document.createElement("td");
+        tdDesc.textContent = x.description;
+
+        const tdAmount = document.createElement("td");
+        tdAmount.className = "amount";
+        tdAmount.textContent = formatMoney(x.amount);
+
+        const tdActions = document.createElement("td");
+        tdActions.className = "actions";
+        const del = document.createElement("button");
+        del.className = "delete-btn";
+        del.type = "button";
+        del.title = "Delete";
+        del.setAttribute("aria-label", "Delete " + x.description);
+        del.textContent = "✕";
+        del.addEventListener("click", function () { deleteExpense(x.id); });
+        tdActions.appendChild(del);
+
+        tr.appendChild(tdDate);
+        tr.appendChild(tdCat);
+        tr.appendChild(tdDesc);
+        tr.appendChild(tdAmount);
+        tr.appendChild(tdActions);
+        rowsEl.appendChild(tr);
+      });
+      emptyEl.hidden = visible.length > 0;
+
+      renderStats();
+      renderBars();
+    }
+
+    function renderStats() {
+      const total = expenses.reduce(function (sum, x) { return sum + x.amount; }, 0);
+      const thisMonth = todayISO().slice(0, 7);
+      const monthTotal = expenses
+        .filter(function (x) { return x.date.slice(0, 7) === thisMonth; })
+        .reduce(function (sum, x) { return sum + x.amount; }, 0);
+
+      const byCat = totalsByCategory();
+      let top = "—";
+      let topAmount = 0;
+      Object.keys(byCat).forEach(function (cat) {
+        if (byCat[cat] > topAmount) { topAmount = byCat[cat]; top = cat; }
+      });
+
+      document.getElementById("stat-total").textContent = formatMoney(total);
+      document.getElementById("stat-month").textContent = formatMoney(monthTotal);
+      document.getElementById("stat-count").textContent = expenses.length;
+      document.getElementById("stat-top").textContent = topAmount > 0 ? top + " (" + formatMoney(topAmount) + ")" : "—";
+    }
+
+    function totalsByCategory() {
+      const totals = {};
+      CATEGORIES.forEach(function (c) { totals[c] = 0; });
+      expenses.forEach(function (x) {
+        totals[x.category] = (totals[x.category] || 0) + x.amount;
+      });
+      return totals;
+    }
+
+    function renderBars() {
+      const barsEl = document.getElementById("bars");
+      const totals = totalsByCategory();
+      const max = Math.max.apply(null, Object.keys(totals).map(function (c) { return totals[c]; }));
+
+      barsEl.innerHTML = "";
+      if (max <= 0) {
+        document.getElementById("breakdown-card").hidden = true;
+        return;
+      }
+      document.getElementById("breakdown-card").hidden = false;
+
+      Object.keys(totals)
+        .filter(function (c) { return totals[c] > 0; })
+        .sort(function (a, b) { return totals[b] - totals[a]; })
+        .forEach(function (cat) {
+          const row = document.createElement("div");
+          row.className = "bar-row";
+
+          const label = document.createElement("span");
+          label.textContent = cat;
+
+          const track = document.createElement("div");
+          track.className = "bar-track";
+          const fill = document.createElement("div");
+          fill.className = "bar-fill";
+          fill.style.width = Math.max(4, (totals[cat] / max) * 100) + "%";
+          fill.style.backgroundColor = catColor(cat);
+          track.appendChild(fill);
+
+          const amount = document.createElement("span");
+          amount.className = "bar-amount";
+          amount.textContent = formatMoney(totals[cat]);
+
+          row.appendChild(label);
+          row.appendChild(track);
+          row.appendChild(amount);
+          barsEl.appendChild(row);
+        });
+    }
+
+    function catColor(cat) {
+      const colors = {
+        Food: "#ef4444", Transport: "#2563eb", Housing: "#8b5cf6", Utilities: "#f59e0b",
+        Health: "#22c55e", Entertainment: "#ec4899", Shopping: "#06b6d4", Other: "#6b7280"
+      };
+      return colors[cat] || "#6b7280";
+    }
+
+    /* ---------- Calculator ---------- */
+    const calcDisplay = document.getElementById("calc-display");
+    let calcValue = "0";
+
+    function calcUpdate() {
+      calcDisplay.value = calcValue;
+    }
+
+    function calcPress(key) {
+      if (key === "C") {
+        calcValue = "0";
+      } else if (key === "back") {
+        calcValue = calcValue.length > 1 ? calcValue.slice(0, -1) : "0";
+      } else if (key === "=") {
+        calcEvaluate();
+        return;
+      } else {
+        const last = calcValue.slice(-1);
+        const isOperator = (c) => c === "+" || c === "-" || c === "*" || c === "/";
+
+        // Replace the previous operator instead of stacking "5+-"
+        if (isOperator(key) && isOperator(last)) {
+          calcValue = calcValue.slice(0, -1) + key;
+        } else if (calcValue === "0" && !isOperator(key) && key !== ".") {
+          calcValue = key;
+        } else {
+          calcValue += key;
+        }
+      }
+      calcUpdate();
+    }
+
+    function calcEvaluate() {
+      // Safety check: only digits, operators, parentheses, dots and spaces
+      if (!/^[\d+\-*/().\s]+$/.test(calcValue) || !/\d/.test(calcValue)) {
+        calcValue = "Error";
+        calcUpdate();
+        return;
+      }
+      try {
+        const result = Function('"use strict"; return (' + calcValue + ")")();
+        if (typeof result !== "number" || !isFinite(result)) throw new Error("bad result");
+        // Trim floating point noise (0.1 + 0.2 -> 0.3)
+        calcValue = String(Math.round(result * 1e10) / 1e10);
+      } catch (e) {
+        calcValue = "Error";
+      }
+      calcUpdate();
+    }
+
+    document.querySelectorAll("[data-calc]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        calcPress(btn.getAttribute("data-calc"));
+      });
+    });
+
+    // Send the result into the "Amount" field (handy for splits: 4500 / 4)
+    document.getElementById("calc-use").addEventListener("click", function () {
+      const value = parseFloat(calcValue);
+      if (!isFinite(value) || value <= 0) {
+        formError.textContent = "Calculate a positive result first, then press this button.";
+        return;
+      }
+      document.getElementById("amount").value = Math.round(value * 100) / 100;
+      formError.textContent = "";
+      document.getElementById("amount").focus();
+    });
+
+    /* ---------- Filters, export, clear ---------- */
+    ["filter-category", "filter-month", "filter-search"].forEach(function (id) {
+      document.getElementById(id).addEventListener("input", render);
+    });
+
+    document.getElementById("export-btn").addEventListener("click", function () {
+      if (!expenses.length) {
+        formError.textContent = "Nothing to export.";
+        return;
+      }
+      const escapeCsv = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+      const lines = ["Date,Description,Category,Amount_PKR"]
+        .concat(expenses.map(function (x) {
+          return [x.date, x.description, x.category, x.amount.toFixed(2)].map(escapeCsv).join(",");
+        }));
+
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "expenses-" + todayISO() + ".csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("clear-btn").addEventListener("click", function () {
+      if (!expenses.length) return;
+      if (confirm("Delete ALL expenses? This cannot be undone.")) {
+        expenses = [];
+        save();
+        render();
+      }
+    });
+
+    /* ---------- Init ---------- */
+    (function init() {
+      // Populate the filter dropdown with the categories actually in use
+      const filterSelect = document.getElementById("filter-category");
+      CATEGORIES.forEach(function (c) {
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        filterSelect.appendChild(opt);
+      });
+
+      document.getElementById("date").value = todayISO();
+      render();
+    })();
+  </script>
+</body>
+</html>
